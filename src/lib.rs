@@ -17,12 +17,6 @@ use core::{
     ops::{Add, Mul, Sub},
 };
 
-#[allow(unused_imports)]
-use rand::{Error as RndError, ErrorKind::Unavailable, Rng};
-
-#[cfg(feature = "std")]
-use rand::rngs::OsRng;
-
 /// Here the field is \Z/(2^255-19).
 ///
 /// An element t, entries t\[0\]...t\[9\], represents the integer
@@ -2630,58 +2624,13 @@ pub fn curve25519(secret: [u8; 32], public: [u8; 32]) -> [u8; 32] {
 
 /// Generate a 32-byte curve25519 secret key.
 ///
-/// If you supply a random 32-byte value, that is used as the base.
-/// If you don't (i.e. use None for the `rand` arg), then a random 32-byte
-/// number will be generated with the best OS random number generator available.
-///
-/// # Example
-///
-/// ```rust
-/// # use self::curve25519::curve25519_sk;
-/// # use rand::Error as RndError;
-/// # #[cfg(not(feature = "std"))]
-/// # fn main() { }
-/// # #[cfg(feature = "std")]
-/// # fn main() -> Result<(), RndError> {
-/// // Let curve25519_sk generate the random 32-byte value.
-/// let sk1 = curve25519_sk(None)?;
-///
-/// let myrand: [u8; 32] = [0; 32]; // Don't use all zeros as a random value!
-///
-/// // Give curve25519_sk a random 32-byte value.
-/// let sk2 = curve25519_sk(Some(myrand))?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn curve25519_sk(rand: Option<[u8; 32]>) -> Result<[u8; 32], RndError> {
-    // Fill a 32-byte buffer with random values if necessary.
-    // Otherwise, use the given 32-byte value.
-    let mut rand: [u8; 32] = match rand {
-        Some(r) => r,
-
-        #[cfg(feature = "std")]
-        None => {
-            let mut rng = OsRng::new()?;
-            let mut buf: [u8; 32] = [0; 32];
-            rng.fill(&mut buf);
-            buf
-        },
-
-        #[cfg(not(feature = "std"))]
-        None => {
-            return Err(RndError::new(
-                Unavailable,
-                "Cannot generate random without Standard Library",
-            ));
-        },
-    };
-
+/// You must supply a random 32-byte value, that is used as the base.
+pub fn curve25519_sk(mut rand: [u8; 32]) -> [u8; 32] {
     // curve25519 secret key bit manip.
     rand[0] &= 248;
     rand[31] &= 127;
     rand[31] |= 64;
-
-    Ok(rand)
+    rand
 }
 
 /// Generate a 32-byte curve25519 public key.
@@ -2798,7 +2747,7 @@ mod tests {
             0x72, 0x51, 0xb2, 0x66, 0x45, 0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0,
             0x99, 0x2a, 0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a,
         ];
-        let pk = curve25519_pk(curve25519_sk(Some(sk)).unwrap());
+        let pk = curve25519_pk(curve25519_sk(sk));
         let correct: [u8; 32] = [
             0x85, 0x20, 0xf0, 0x09, 0x89, 0x30, 0xa7, 0x54, 0x74, 0x8b, 0x7d,
             0xdc, 0xb4, 0x3e, 0xf7, 0x5a, 0x0d, 0xbf, 0x3a, 0x0d, 0x26, 0x38,
